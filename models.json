@@ -1,0 +1,44 @@
+{
+    "i": {
+        "type": "i",
+        "snumber": 1,
+        "start": [0],
+        "end": [18]
+    },
+    "V": {
+        "type": "V",
+        "snumber": 1,
+        "start": [0],
+        "end": [94]
+    },
+    "T": {
+        "type": "T",
+        "snumber": 1,
+        "start": [0],
+        "end": [180]
+    },
+    "L": {
+        "type": "L",
+        "snumber": 2,
+        "start": [0, 59],
+        "end": [18, 139]
+    },
+    "I": {
+        "type": "I",
+        "snumber": 2,
+        "start": [0, 180],
+        "end": [18, 198]
+    },
+    "Y": {
+        "type": "Y",
+        "snumber": 2,
+        "start": [0, 218],
+        "end": [94, 236]
+    },
+    "X": {
+        "type": "X",
+        "snumber": 2,
+        "start": [0, 180],
+        "end": [94, 274]
+    }
+}
