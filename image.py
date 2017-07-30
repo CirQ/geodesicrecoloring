@@ -11,9 +11,9 @@ from timer import timer
 class Image(object):
     def __init__(self, filepath):
         self.__filename = filepath.split('/')[-1]
-        self.__bgrimage, self.__hsvimage = self.__read_hsvimage(filepath)
+        self.__bgrimage, self.__hsvimage = self.__read_images(filepath)
         self.__shape = self.__bgrimage.shape[:2]
-        self._huechannel = self.__read_huechannel(self.__hsvimage)
+        self.huechannel = self.read_huechannel()
 
     @property
     def filename(self):
@@ -22,7 +22,7 @@ class Image(object):
     def shape(self):
         return self.__shape
 
-    def __read_hsvimage(self, filepath):
+    def __read_images(self, filepath):
         """
             Read a BGR image from file path and covert it
             into HSV color space, then return it.
@@ -35,19 +35,24 @@ class Image(object):
         hsvimage = cv2.cvtColor(bgrimage, cv2.COLOR_BGR2HSV_FULL)
         return bgrimage, hsvimage
 
-    def __read_huechannel(self, hsvimage):
+    def read_huechannel(self, dtype='uint16'):
         """
             To obtain the hue channel (a copy) of image, by expanding
             the hue value.
-        :param hsvimage: the image with HSV_FULL color scheme in openCV.
-        :type hsvimage: ndarray
+        :param dtype: the data type
+        :type dtype: string ('uint16' or 'int32')
         :return: the single hue channel of the input image.
         :rtype: ndarray (2-d array, shape like original image)
         """
-        huechannel = np.zeros(shape=self.__shape, dtype='uint16')
-        for i in range(self.__shape[0]):
-            for j in range(self.__shape[1]):
-                huechannel[i][j] = np.uint16(hsvimage[i][j][0] * 360.0 / 256)
+        huechannel = np.zeros(shape=self.__shape, dtype=dtype)
+        if dtype == 'uint16':
+            for i in range(self.__shape[0]):
+                for j in range(self.__shape[1]):
+                    huechannel[i][j] = np.uint16(self.__hsvimage[i][j][0] * 360.0 / 256)
+        if dtype == 'int32':
+            for i in range(self.__shape[0]):
+                for j in range(self.__shape[1]):
+                    huechannel[i][j] = np.int32(self.__hsvimage[i][j][0] * 360.0 / 256)
         return huechannel
 
     def recover_huechannel(self):
@@ -56,8 +61,7 @@ class Image(object):
         :return: None
         :rtype: None
         """
-        self._huechannel = self.__read_huechannel(self.__hsvimage)
-
+        self.huechannel = self.read_huechannel()
 
     def show_image(self, after=False):
         """
@@ -71,7 +75,7 @@ class Image(object):
             hsvimage = np.copy(self.__hsvimage)
             for i in range(self.__shape[0]):
                 for j in range(self.__shape[1]):
-                    hsvimage[i][j][0] = np.uint8(self._huechannel[i][j] * 256.0 / 360)
+                    hsvimage[i][j][0] = np.uint8(self.huechannel[i][j] * 256.0 / 360)
             bgrimage = cv2.cvtColor(hsvimage, cv2.COLOR_HSV2BGR_FULL)
             cv2.imshow('after hue modification: %s' % self.__filename, bgrimage)
         else:
@@ -88,17 +92,17 @@ class Image(object):
         :rtype: None
         """
         if after:
-            hist = cv2.calcHist([self._huechannel], [0], None, [360], [0, 360])
+            hist = cv2.calcHist([self.huechannel], [0], None, [360], [0, 360])
             plt.figure('histogram after modification: %s' % self.__filename)
         else:
-            huechannel = self.__read_huechannel(self.__hsvimage)
+            huechannel = self.read_huechannel()
             hist = cv2.calcHist([huechannel], [0], None, [360], [0, 360])
             plt.figure('histogram before modification: %s' % self.__filename)
         plt.plot(hist)
         plt.xlim([0, 360])
-        plt.show('histogram')
+        plt.show()
 
 
 if __name__ == '__main__':
-    img = Image('images/pool.png')
-    img.plothue_histogram()
+    img = Image('images/cat.png')
+    print img.shape

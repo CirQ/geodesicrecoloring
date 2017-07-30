@@ -44,7 +44,7 @@ class TemplateFinder(Image):
         :return: value of potential function.
         :rtype: float
         """
-        hist = cv2.calcHist([self._huechannel], [0], None, [360], [0, 360])
+        hist = cv2.calcHist([self.huechannel], [0], None, [360], [0, 360])
         numerator, denominator = np.float32(0), np.float32(0)
         one = np.float32(1)
         for i in range(360):
@@ -54,9 +54,10 @@ class TemplateFinder(Image):
         potential = numerator / denominator
         return potential
 
-    def __find_one_template(self, ttype):
+    def __find_one_template_linear(self, ttype):
         """
             Find most suitable rotate angle, i.e., Eq.(3).
+            Implemented by linear searching stretegy.
         :param ttype: the model type.
         :type ttype: char
         :return: The most suitable template instance with corresponding
@@ -144,6 +145,7 @@ class TemplateFinder(Image):
         print '# Most harmonic Template is Found #'
         print '###################################'
 
+    @timer(unit='ms')
     def find_templates_with_dump(self, beta):
         """
             An all-in-one method that integrate the procedure needed
@@ -163,7 +165,11 @@ class TemplateFinder(Image):
             pickle.dump(self, w)
         print 'Object dumped successfully!'
 
-
+################################################################################
+#
+#     Try to optimize the searching stretegy of finding best rotate angle.
+#
+################################################################################
 if __name__ == '__main__':
     tf = TemplateFinder('images/cat.png')
     tf.find_templates_with_dump(0.1)
