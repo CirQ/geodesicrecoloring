@@ -36,11 +36,11 @@ class Template(object):
             '\n'
         if self.__snumber == 1:
             interval = \
-            '#             Sector 1: [%3d,%3d]             #' % (self.__start[0], self.__end[0])
+            '#             Sector 1: [%3d,%3d]             #' % ((self.__start[0]+self.__theta)%360, (self.__end[0]+self.__theta)%360)
         elif self.__snumber == 2:
             interval = \
-            '#             Sector 1: [%3d,%3d]             #\n' % (self.__start[0], self.__end[0]) +\
-            '#             Sector 2: [%3d,%3d]             #' % (self.__start[1], self.__end[1])
+            '#             Sector 1: [%3d,%3d]             #\n' % ((self.__start[0]+self.__theta)%360, (self.__end[0]+self.__theta)%360) +\
+            '#             Sector 2: [%3d,%3d]             #' % ((self.__start[1]+self.__theta)%360, (self.__end[1]+self.__theta)%360)
         else:
             raise AttributeError('But this error never occurs!')
         return string % (self.__type, self.__snumber, interval, self.__theta)
@@ -74,12 +74,14 @@ class Template(object):
         else:
             raise TypeError('Expect an int value for rotate angle theta.')
 
-    def covers_hue(self, hue):
+    def covers_hue(self, hue, sector=2):
         """
             Paper Eq.(2), to check whether a hue value belongs to 
             this harmonic template.
         :param hue: a hue value between 0 and 359.
         :type hue: int
+        :param sector: in {0, 1, 2}, indicates which sector belongs
+        :type sector: int
         :return: whether the sector covers this hue.
         :rtype: bool
         """
@@ -88,8 +90,15 @@ class Template(object):
             if self.__snumber == 1:
                 return self.__start[0] <= rback_hue <= self.__end[0]
             elif self.__snumber == 2:
-                return (self.__start[0] <= rback_hue <= self.__end[0]) or \
-                       (self.__start[1] <= rback_hue <= self.__end[1])
+                if sector == 0:
+                    return self.__start[0] <= rback_hue <= self.__end[0]
+                elif sector == 1:
+                    return self.__start[1] <= rback_hue <= self.__end[1]
+                elif sector == 2:
+                    return (self.__start[0] <= rback_hue <= self.__end[0]) or \
+                           (self.__start[1] <= rback_hue <= self.__end[1])
+                else:
+                    raise ValueError('Parameter sector should be 0, 1 or 2.')
             else:
                 raise AttributeError('But this error never occurs!')
         else:

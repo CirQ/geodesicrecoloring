@@ -66,12 +66,6 @@ class TemplateFinder(Image):
         """
         t = Template(ttype)
         max_potential, max_theta = np.float32(-1), -1
-        ###############################################################
-        #
-        # Have you remember that there is a problem in Leetcode which
-        # requires to find the maximal in a rotated sorted array?
-        #
-        ###############################################################
         for theta in range(0, 360):
             t.theta = theta
             tmp_potential = self.__potential(t)
@@ -79,6 +73,21 @@ class TemplateFinder(Image):
                 max_potential, max_theta = tmp_potential, theta
         t.theta = max_theta
         self.__templates[ttype] = (t, max_potential)
+
+    def __find_one_template_binary_failed(self, ttype):
+        """
+            To find most suitable rotate angle, i.e. Eq.(3),
+            attemp to implement by binary searching. But it 
+            failed since the distribution of potentials are not
+            rotatedly sorted. If the model has one sector, then
+            it is, otherwise, the distribution is symmetric with
+            some pivot and will have two similar componnets.
+        """
+        t = Template(ttype)
+        for theta in range(0, 360):
+            t.theta = theta
+            potential = self.__potential(t)
+            print theta, potential
 
     def __find_better_template(self, p, q, beta):
         """
@@ -121,7 +130,7 @@ class TemplateFinder(Image):
         print '###   Start Finding Templates   ###'
         print '###################################'
         for i, ttype in enumerate(self.type_list, start=1):
-            self.__find_one_template(ttype)
+            self.__find_one_template_linear(ttype)
             print '%7s Found one template. %-7s' % ('>'*(8-i), '<'*i)
         print '###################################'
         print '###  Seven Templates are Found  ###'
@@ -165,11 +174,7 @@ class TemplateFinder(Image):
             pickle.dump(self, w)
         print 'Object dumped successfully!'
 
-################################################################################
-#
-#     Try to optimize the searching stretegy of finding best rotate angle.
-#
-################################################################################
+
 if __name__ == '__main__':
-    tf = TemplateFinder('images/cat.png')
+    tf = TemplateFinder('images/tulips.png')
     tf.find_templates_with_dump(0.1)

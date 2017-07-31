@@ -102,6 +102,21 @@ class Image(object):
         plt.xlim([0, 360])
         plt.show()
 
+    def save_new_image(self, filename):
+        """
+            Save the image after recoloring, save it with filename.
+        :param filename: new image's file name.
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
+        hsvimage = np.copy(self.__hsvimage)
+        for i in range(self.__shape[0]):
+            for j in range(self.__shape[1]):
+                hsvimage[i][j][0] = np.uint8(self.huechannel[i][j] * 256.0 / 360)
+        bgrimage = cv2.cvtColor(hsvimage, cv2.COLOR_HSV2BGR_FULL)
+        cv2.imwrite(filename, bgrimage)
+
 
 if __name__ == '__main__':
     img = Image('images/cat.png')

@@ -3,6 +3,7 @@
 # Author: cirq
 # Created Time: 2017-07-30 12:05:40
 
+import cv2
 import pickle
 import numpy as np
 from timer import timer
@@ -16,7 +17,10 @@ class Geodesic(object):
         except IOError:
             print 'No such pickle!'
             __import__('sys').exit(1)
-        self.huechannel = self.__tf.read_huechannel('int32')
+        self.filename = filename
+        self.huechannel = self.__tf.read_huechannel('uint16')
+        self.shape = self.__tf.shape
+        # self.dic0, self.dic1 = None, None
 
     @staticmethod
     def __straight_distance(sp, ep, distance, axis):
@@ -219,21 +223,175 @@ class Geodesic(object):
             Calculate the distance between two pixels in self's huechannel.
             Using simply geometric relationship on color wheel.
         :param sp: the starting point.
-        :type sp: (x, y)
+        :type sp: (x, y) or int
         :param ep: the ending point.
-        :type ep: (x, y)
+        :type ep: (x, y) or int
         :return: the geodesic distance between sp and ep.
         :rtype: int64
         """
-        angle = self.huechannel[sp[0]][sp[1]] - self.huechannel[ep[0]][ep[1]]
+        angle = None
+        if isinstance(sp, tuple) and isinstance(ep, tuple):
+            angle = self.huechannel[sp[0]][sp[1]] - self.huechannel[ep[0]][ep[1]]
+        elif isinstance(sp, int) and isinstance(ep, int):
+            angle = sp - ep
         return min(angle%360, (-angle)%360)
 
-    def test(self):
-        p, q = (1, 1), (730, 481)
-        print self.__geodesic_distance_complicated(p, q)
-        print self.__geodesic_distance_simple(p, q)
+    def __belonging_dictionary(self, template):
+        """
+            Calculate \Omega_{N1} and \Omega_{N2}
+        :param template: A template
+        :type template: Template
+        :return: three dictionaries represent \Omega_{N1} and \Omega_{N2} and \Omega_N
+                 if there are two sectors, otherwise return \Omega_N only.
+        :rtype: 3 lists of (x, y) / list of (x, y)
+        """
+        belonging_dic = []
+        if template.snumber == 1:
+            for i in range(self.shape[0]):
+                for j in range(self.shape[1]):
+                    if template.covers_hue(int(self.huechannel[i][j]), sector=0):
+                        belonging_dic.append((i, j))
+            return belonging_dic
+        belonging_dic0 = []
+        belonging_dic1 = []
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                if template.covers_hue(self.huechannel[i][j], sector=0):
+                    belonging_dic0.append((i, j))
+                    belonging_dic.append((i, j))
+                elif template.covers_hue(self.huechannel[i][j], sector=1):
+                    belonging_dic1.append((i, j))
+                    belonging_dic.append((i, j))
+        return belonging_dic0, belonging_dic1, belonging_dic
+
+    def __find_most_suitable_sector(self, s_pixel, dic0, dic1):
+        """
+            Find the most suitable sector to which s_pixel should belong. Eq.(12)
+        :param s_pixel: a pixel in \Omega_U
+        :type s_pixel: (x(int), y(int))
+        :param dic0: \Omega_{N1}
+        :type dic0: list of (x, y)
+        :param dic1: \Omega_{N2}
+        :type dic1: list of (x, y)
+        :return: wihch sector should s_pixel enter
+        :rtype: int
+        """
+        min_geo_dist0, min_geo_dist1 = np.int32(0x7FFFFFFF), np.int32(0x7FFFFFFF)
+        for t_pixel in dic0:
+            tmp_geo_dist0 = self.__geodesic_distance_simple(s_pixel, t_pixel)
+            if tmp_geo_dist0 < min_geo_dist0:
+                min_geo_dist0 = tmp_geo_dist0
+        for t_pixel in dic1:
+            tmp_geo_dist1 = self.__geodesic_distance_simple(s_pixel, t_pixel)
+            if tmp_geo_dist1 < min_geo_dist1:
+                min_geo_dist1 = tmp_geo_dist1
+        return 0 if min_geo_dist0 < min_geo_dist1 else 1
+
+    def __recolor_a_pixel(self, s, dic):
+        """
+            Recolor a pixel. Eq.(13)
+        :param s: a pixel's coordinate.
+        :type s: (x, y)
+        :param dic: \Omega_{NS}
+        :type dic: list of (x, y)
+        :return: new hue value
+        :rtype: float
+        """
+        numerator, denominator = np.float32(0), np.float32(0)
+        weight = lambda d: 1.0 / d
+        for t in dic:
+            geo_dist = self.__geodesic_distance_simple(s, t)
+            numerator += weight(geo_dist)*self.huechannel[s[0]][s[1]]
+            denominator += weight(geo_dist)
+        return numerator / denominator
+
+
+    def __recolor_whole_image_in_one_sector(self, template):
+        # There will be only one sector.
+        hist = cv2.calcHist([self.huechannel], [0], None, [360], [0, 360])
+        hist = {i: int(hist[i][0]) for i in range(360)}
+        dic = []
+        for k, v in hist.items():
+            if v != 0:
+                if template.covers_hue(k):
+                    dic.append(k)
+        weight = lambda d: 1.0 / d
+        mapping = {}
+        for k, v in hist.items():
+            if v != 0:
+                if not template.covers_hue(k):
+                    numerator, denominator = 0.0, 0.0
+                    for t in dic:
+                        geo_dist = self.__geodesic_distance_simple(k, t)
+                        numerator += weight(geo_dist)*t
+                        denominator += weight(geo_dist)
+                    mapping[k] = int(numerator / denominator)
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                if self.huechannel[i][j] in mapping:
+                    self.__tf.huechannel[i][j] = mapping[self.huechannel[i][j]]
+
+    def __recolor_whole_image_in_two_sectors(self, template):
+        # There will be two sectors candidates.
+        hist = cv2.calcHist([self.huechannel], [0], None, [360], [0, 360])
+        hist = {i: int(hist[i][0]) for i in range(360)}
+        dic0, dic1, dic = [], [], []
+        for k, v in hist.items():
+            if v != 0:
+                if template.covers_hue(k, sector=0):
+                    dic0.append(k)
+                    dic.append(k)
+                elif template.covers_hue(k, sector=1):
+                    dic1.append(k)
+                    dic.append(k)
+        weight = lambda d: 1.0 / d
+        mapping = {}
+        for k, v in hist.items():
+            if v != 0:
+                if not template.covers_hue(k):
+                    numerator, denominator = 0.0, 0.0
+                    for t in dic0:
+                        geo_dist = self.__geodesic_distance_simple(k, t)
+                        numerator += weight(geo_dist)*t
+                        denominator += weight(geo_dist)
+                    map0 = int(numerator / denominator)
+                    to0 = self.__geodesic_distance_simple(k, map0)
+                    numerator, denominator = 0.0, 0.0
+                    for t in dic1:
+                        geo_dist = self.__geodesic_distance_simple(k, t)
+                        numerator += weight(geo_dist)*t
+                        denominator += weight(geo_dist)
+                    map1 = int(numerator / denominator)
+                    to1 = self.__geodesic_distance_simple(k, map1)
+                    mapping[k] = map0 if to0 < to1 else map1
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                if self.huechannel[i][j] in mapping:
+                    self.__tf.huechannel[i][j] = mapping[self.huechannel[i][j]]
+
+    def recolor_image(self, template):
+        """
+            Recolor image with specific template, it will print the 
+            information of the chosen template, and save it.
+        """
+        print template
+
+        if template.snumber == 1:
+            self.__recolor_whole_image_in_one_sector(template)
+        elif template.snumber == 2:
+            self.__recolor_whole_image_in_two_sectors(template)
+        filename = ('_%s.'%template.type).join(self.filename.split('.'))
+        self.__tf.save_new_image(filename)
+
+
+
+    def main(self, ttype='b'):
+        if ttype == 'b':
+            self.recolor_image(self.__tf.best_template)
+        else:
+            self.recolor_image(self.__tf.templates[ttype][0])
 
 
 if __name__ == '__main__':
-    geo = Geodesic('cat.png')
-    geo.test()
+    geo = Geodesic('tulips.png') # 1 sector
+    geo.main('I')

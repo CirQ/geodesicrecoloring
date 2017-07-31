@@ -2,3 +2,6 @@
 /.idea
 /images
 *.pickle
+*.png
+*.bmp
+*.jpg
