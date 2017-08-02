@@ -115,7 +115,7 @@ class Image(object):
             for j in range(self.__shape[1]):
                 hsvimage[i][j][0] = np.uint8(self.huechannel[i][j] * 256.0 / 360)
         bgrimage = cv2.cvtColor(hsvimage, cv2.COLOR_HSV2BGR_FULL)
-        cv2.imwrite(filename, bgrimage)
+        cv2.imwrite('after_images/'+ filename, bgrimage)
 
 
 if __name__ == '__main__':
