@@ -9,26 +9,26 @@ from geodesic import Geodesic
 from color_wheel import ColorWheel
 
 def main():
-    img = 'drops.jpg'
-    ttype = None
-    # tf = TemplateFinder('images/' + img)
-    # tf.find_templates_with_dump(0.1)
+    img = 'angel.jpg'
+    ttype = 'b'
     if ttype is None:
+        tf = TemplateFinder('images/' + img)
+        tf.find_templates_with_dump(0.1)
         cw = ColorWheel('images/' + img)
         cw.draw_wheel()
     elif ttype != 'b':
         geo = Geodesic(img)
         geo.main(ttype)
-        cw = ColorWheel('images/' + img)
         with open('%s.pickle'%('@'.join(img.split('.'))), 'r') as r:
             tf = pickle.load(r)
+        cw = ColorWheel('after_images/%s_%s.%s' % (img.split('.')[0], ttype, img.split('.')[1]))
         cw.draw_wheel(tf.templates[ttype][0])
     else:
         geo = Geodesic(img)
         geo.main()
-        cw = ColorWheel('images/' + img)
         with open('%s.pickle'%('@'.join(img.split('.'))), 'r') as r:
             tf = pickle.load(r)
+        cw = ColorWheel('after_images/%s_%s.%s' % (img.split('.')[0], tf.best_template.type, img.split('.')[1]))
         cw.draw_wheel(tf.best_template)
 
 

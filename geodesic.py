@@ -384,7 +384,7 @@ class Geodesic(object):
         self.__tf.save_new_image(filename)
 
 
-
+    @timer(unit='ms')
     def main(self, ttype='b'):
         if ttype == 'b':
             self.recolor_image(self.__tf.best_template)
